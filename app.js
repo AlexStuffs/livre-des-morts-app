@@ -72,6 +72,7 @@ function ownedQty(id) {
 }
 function addToBackpack(id, q = 1) { S.backpack[id] = (S.backpack[id] || 0) + q; if (S.backpack[id] <= 0) delete S.backpack[id]; }
 function addToCoffre(id, q = 1) { S.car.coffre[id] = (S.car.coffre[id] || 0) + q; if (S.car.coffre[id] <= 0) delete S.car.coffre[id]; }
+function kitMedicalCount() { return (S.backpack.kitmedical || 0) + (S.car.coffre.kitmedical || 0); }
 
 /* ---------- Router -------------------------------------------------------- */
 const ROUTES = {};
@@ -161,6 +162,7 @@ ROUTES.hero = {
   html() {
     const b = S.hero.blessures, pct = Math.min(100, b / M.heroBlessuresMax * 100);
     const cls = b >= M.heroBlessuresMax ? 'danger' : b >= M.heroBlessuresMax * 0.7 ? 'warn' : '';
+    const kits = kitMedicalCount();
     return `
       <div class="card">
         <h2>Blessures</h2>
@@ -168,10 +170,9 @@ ROUTES.hero = {
           <button data-action="step" data-path="hero.blessures" data-delta="-1" data-min="0">−</button>
           <div class="val">${b}<span class="max">/ ${M.heroBlessuresMax}</span></div>
           <button data-action="step" data-path="hero.blessures" data-delta="1" data-max="${M.heroBlessuresMax}">＋</button>
-          <div class="spacer"></div>
-          <button class="btn sm" data-action="heal10">Kit médical −10</button>
         </div>
         <div class="bar ${cls}"><span style="width:${pct}%"></span></div>
+        <button class="btn full" data-action="heal10" ${kits ? '' : 'disabled'} style="margin-top:10px">💊 Utiliser un Kit médical (−10) ${kits ? '· ' + kits + ' dispo.' : '· aucun'}</button>
         ${b >= M.heroBlessuresMax ? '<div class="tag-danger" style="margin-top:8px">☠ 30 blessures atteintes — l\'aventure se termine.</div>' : ''}
       </div>
       <div class="section-title">Équipement (4 emplacements)</div>
@@ -759,7 +760,12 @@ const ACTIONS = {
   'step': t => { const p = t.dataset.path, delta = +t.dataset.delta; let v = getPath(p) + delta;
     if (t.dataset.min != null) v = Math.max(+t.dataset.min, v); if (t.dataset.max != null) v = Math.min(+t.dataset.max, v);
     setPath(p, v); render(); },
-  'heal10': () => { S.hero.blessures = Math.max(0, S.hero.blessures - 10); toast('−10 blessures'); render(); },
+  'heal10': () => {
+    if (kitMedicalCount() <= 0) { toast('Aucun Kit médical dans le sac ni le coffre'); return; }
+    S.hero.blessures = Math.max(0, S.hero.blessures - 10);
+    if (S.backpack.kitmedical) addToBackpack('kitmedical', -1); else addToCoffre('kitmedical', -1);
+    toast('Kit médical utilisé (−10 blessures)'); render();
+  },
   'equip': t => openEquip(t.dataset.slot),
   'equip-pick': t => doEquip(t.dataset.slot, t.dataset.id),
   'unequip': t => unequip(t.dataset.slot),
