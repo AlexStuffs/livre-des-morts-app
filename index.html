@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+  <meta name="theme-color" content="#0e0f12">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="stylesheet" href="style.css">
+  <title>Le Livre des Morts</title>
+</head>
+<body>
+  <header id="topbar">
+    <button class="btn-back hidden" id="btnBack" aria-label="Retour">‹</button>
+    <div class="title" id="screenTitle">Le Livre des Morts<small>Compagnon de jeu</small></div>
+    <span class="session-badge" id="sessionBadge">Session 1</span>
+    <div id="quickdice">
+      <span class="dresult" id="d1">–</span>
+      <span class="dresult" id="d2">–</span>
+      <span class="dsum" id="dsum"></span>
+      <button id="btnDice" aria-label="Lancer les dés">🎲</button>
+    </div>
+  </header>
+
+  <main id="screen"></main>
+
+  <nav id="bottombar">
+    <button class="btn" id="navHome">🏠 Accueil</button>
+    <button class="btn" id="navHero">🧍 Héros</button>
+    <button class="btn" id="navBackpack">🎒 Sac</button>
+    <button class="btn primary" id="navCombat">⚔️ Combat</button>
+  </nav>
+
+  <div id="toast"></div>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

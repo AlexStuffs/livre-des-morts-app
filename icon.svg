@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#0e0f12"/>
+  <rect x="56" y="56" width="400" height="400" rx="64" fill="#16181d" stroke="#33373f" stroke-width="6"/>
+  <!-- Crâne stylisé -->
+  <g fill="#e6e7ea">
+    <path d="M256 120c-78 0-134 54-134 128 0 40 18 68 42 86v40c0 12 10 22 22 22h140c12 0 22-10 22-22v-40c24-18 42-46 42-86 0-74-56-128-134-128z"/>
+  </g>
+  <circle cx="206" cy="256" r="30" fill="#b3402f"/>
+  <circle cx="306" cy="256" r="30" fill="#b3402f"/>
+  <path d="M256 300l-18 34h36z" fill="#0e0f12"/>
+  <g stroke="#0e0f12" stroke-width="8" stroke-linecap="round">
+    <line x1="228" y1="392" x2="228" y2="430"/>
+    <line x1="256" y1="392" x2="256" y2="430"/>
+    <line x1="284" y1="392" x2="284" y2="430"/>
+  </g>
+</svg>
