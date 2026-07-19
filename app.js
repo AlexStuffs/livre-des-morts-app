@@ -65,6 +65,8 @@ function itemPlace(id) { const it = DATA.itemById[id]; return it && it.placeSac 
 function backpackUsed() {
   return Object.entries(S.backpack).reduce((n, [id, q]) => n + itemPlace(id) * q, 0);
 }
+function backpackFree() { return M.backpackMax - backpackUsed(); }
+function canAddToBackpack(id, q = 1) { return backpackUsed() + itemPlace(id) * q <= M.backpackMax; }
 function ownedQty(id) {
   let n = (S.backpack[id] || 0) + (S.car.coffre[id] || 0);
   ['ceinture', 'mainDroite', 'mainGauche', 'deuxMains'].forEach(s => { if (S.hero[s] && S.hero[s].itemId === id) n++; });
@@ -275,10 +277,13 @@ function listEditor(field) {
 }
 function openAddItem() {
   const all = [...DATA.weapons.filter(w => w.placeSac != null), ...DATA.craftItems];
-  const rows = all.map(it => `<div class="item"><div class="grow"><div class="name">${esc(itemName(it.id))}</div>
-      <div class="meta">${it.placeSac} place(s)/u ${it.usage ? '· ' + it.usage : '· ' + (it.type || '')}</div></div>
-      <button class="btn sm primary" data-action="bp-add" data-id="${it.id}">＋ Sac</button></div>`).join('');
-  modal('Ajouter au sac', rows);
+  const rows = all.map(it => {
+    const fits = canAddToBackpack(it.id);
+    return `<div class="item"><div class="grow"><div class="name">${esc(itemName(it.id))}</div>
+      <div class="meta">${it.placeSac} place(s)/u ${it.usage ? '· ' + it.usage : '· ' + (it.type || '')}${fits ? '' : ' · <span class="tag-danger">ne rentre pas</span>'}</div></div>
+      <button class="btn sm ${fits ? 'primary' : 'ghost'}" data-action="bp-add" data-id="${it.id}"${fits ? '' : ' style="opacity:.5"'}>＋ Sac</button></div>`;
+  }).join('');
+  modal('Ajouter au sac — ' + backpackFree() + '/' + M.backpackMax + ' libre(s)', rows);
 }
 
 /* ============================================================================
@@ -434,8 +439,10 @@ function togglePO(num, i, on) {
   const q = it.qty || 1;
   if (it.ref.startsWith('mun:')) { const m = it.ref.slice(4); S.munitions[m] = Math.max(0, (S.munitions[m] || 0) + (on ? q : -q)); }
   else {
-    if (on) { addToBackpack(it.ref, 1); if (backpackUsed() > M.backpackMax) toast('⚠ Sac en surcharge (' + backpackUsed() + '/' + M.backpackMax + ')'); }
-    else addToBackpack(it.ref, -1);
+    if (on) {
+      if (!canAddToBackpack(it.ref)) { toast('Sac plein : ' + itemName(it.ref) + ' prend ' + itemPlace(it.ref) + ' place(s), ' + backpackFree() + ' libre(s)'); render(); return; }
+      addToBackpack(it.ref, 1);
+    } else addToBackpack(it.ref, -1);
   }
   S.paraObjets[num][i] = on;
   render();
@@ -769,8 +776,12 @@ const ACTIONS = {
   'equip': t => openEquip(t.dataset.slot),
   'equip-pick': t => doEquip(t.dataset.slot, t.dataset.id),
   'unequip': t => unequip(t.dataset.slot),
-  'bp': t => { addToBackpack(t.dataset.id, +t.dataset.delta); render(); },
-  'bp-add': t => { addToBackpack(t.dataset.id, 1); toast(itemName(t.dataset.id) + ' ajouté'); if (backpackUsed() > M.backpackMax) toast('⚠ Sac en surcharge'); render(); },
+  'bp': t => { const id = t.dataset.id, d = +t.dataset.delta;
+    if (d > 0 && !canAddToBackpack(id)) { toast('Sac plein : ' + itemName(id) + ' prend ' + itemPlace(id) + ' place(s), ' + backpackFree() + ' libre(s)'); return; }
+    addToBackpack(id, d); render(); },
+  'bp-add': t => { const id = t.dataset.id;
+    if (!canAddToBackpack(id)) { toast('Sac plein : ' + itemName(id) + ' prend ' + itemPlace(id) + ' place(s), ' + backpackFree() + ' libre(s)'); return; }
+    addToBackpack(id, 1); toast(itemName(id) + ' ajouté'); render(); openAddItem(); },
   'add-item': openAddItem,
   'coffre': t => { addToCoffre(t.dataset.id, +t.dataset.delta); render(); },
   'coffre-add': t => { addToCoffre(t.dataset.id, 1); toast(itemName(t.dataset.id) + ' au coffre'); render(); },
