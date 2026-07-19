@@ -263,7 +263,7 @@ function bpItemRow(id, q) {
       <div class="meta">${itemPlace(id)} pl./u · total ${itemPlace(id) * q} ${it.usage === 'outil' ? '<span class="pill tool">outil</span>' : ''}</div></div>
       <div class="stepper"><button data-action="bp" data-id="${id}" data-delta="-1">−</button>
       <div class="val" style="min-width:40px">${q}</div>
-      <button data-action="bp" data-id="${id}" data-delta="1">＋</button></div>`;
+      <button data-action="bp" data-id="${id}" data-delta="1">＋</button></div></div>`;
 }
 function listEditor(field) {
   const arr = S[field];
