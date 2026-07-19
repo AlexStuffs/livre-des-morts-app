@@ -172,7 +172,7 @@ ROUTES.hero = {
           <button data-action="step" data-path="hero.blessures" data-delta="1" data-max="${M.heroBlessuresMax}">＋</button>
         </div>
         <div class="bar ${cls}"><span style="width:${pct}%"></span></div>
-        <button class="btn full" data-action="heal10" ${kits ? '' : 'disabled'} style="margin-top:10px">💊 Utiliser un Kit médical (−10) ${kits ? '· ' + kits + ' dispo.' : '· aucun'}</button>
+        <button class="btn full ${kits ? '' : 'ghost'}" data-action="heal10" style="margin-top:10px;${kits ? '' : 'opacity:.55'}">💊 Utiliser un Kit médical (−10) ${kits ? '· ' + kits + ' dispo.' : '· aucun en stock'}</button>
         ${b >= M.heroBlessuresMax ? '<div class="tag-danger" style="margin-top:8px">☠ 30 blessures atteintes — l\'aventure se termine.</div>' : ''}
       </div>
       <div class="section-title">Équipement (4 emplacements)</div>
