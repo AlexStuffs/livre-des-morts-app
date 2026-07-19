@@ -568,7 +568,7 @@ function loadCombat(num) {
     mult: { cont: v(a.cont), tranch: v(a.tranch), perf: v(a.perf), tir: v(a.tir) },
     groupe: a.groupe || '',
   }));
-  S.combat = { paragraphe: num, enemies, target: 0, log: [] };
+  S.combat = { paragraphe: num, enemies, target: 0, log: [], weapon: null };
   render();
 }
 /* Blessures max numérique de l'ennemi, ou null si non renseigné (pas de plafond) */
@@ -597,19 +597,26 @@ function combatHtml(c) {
 
     ${c.enemies.map((e, i) => enemyHtml(e, i, c.target === i)).join('')}
 
-    <div class="card">
-      <h3>Assaut — arme du héros</h3>
-      <select id="combatWeapon" class="grow" style="margin-bottom:8px">
-        ${weaponsAvail.map(id => `<option value="${id}">${esc(itemName(id))}</option>`).join('')}
-      </select>
-      <div class="row wrap">
-        <button class="btn sm" data-action="assault" data-type="cont">Frapper (contondant)</button>
-        <button class="btn sm" data-action="assault" data-type="tranch">Frapper (tranchant)</button>
-        <button class="btn sm" data-action="assault" data-type="perf">Frapper (perforant)</button>
-        <button class="btn sm primary" data-action="assault" data-type="tir">Tir</button>
-      </div>
-      <div class="muted" style="margin-top:6px">2d6 ≥ Habileté ennemi = touché (dégâts selon le type × multiplicateur). Sinon le héros subit la Force. Cible : ${esc(c.enemies[c.target] ? c.enemies[c.target].nom : '—')}.</div>
-    </div>
+    ${(() => {
+      const wid = (c.weapon && weaponsAvail.includes(c.weapon)) ? c.weapon : weaponsAvail[0];
+      const w = DATA.itemById[wid];
+      const mbtn = (type, lbl) => { const val = meleeVal(w, type, wid), off = val == null;
+        return `<button class="btn sm${off ? ' ghost' : ''}" data-action="assault" data-type="${type}"${off ? ' style="opacity:.45"' : ''}>${lbl} ${off ? '—' : val}</button>`; };
+      const tir = parseTir(w.tir), toff = !tir;
+      return `<div class="card">
+        <h3>Assaut — arme du héros</h3>
+        <select id="combatWeapon" data-combatweapon="1" class="grow" style="margin-bottom:8px">
+          ${weaponsAvail.map(id => `<option value="${id}"${id === wid ? ' selected' : ''}>${esc(itemName(id))}</option>`).join('')}
+        </select>
+        <div class="row wrap">
+          ${mbtn('cont', 'Contondant')}
+          ${mbtn('tranch', 'Tranchant')}
+          ${mbtn('perf', 'Perforant')}
+          <button class="btn sm${toff ? ' ghost' : ' primary'}" data-action="assault" data-type="tir"${toff ? ' style="opacity:.45"' : ''}>Tir ${toff ? '—' : String(w.tir).replace('x', '×')}</button>
+        </div>
+        <div class="muted" style="margin-top:6px">Valeur = dégâts de base de l'arme (× multiplicateur de l'ennemi à la résolution). 2d6 ≥ Habileté = touché, sinon le héros subit la Force. Cible : ${esc(c.enemies[c.target] ? c.enemies[c.target].nom : '—')}.</div>
+      </div>`;
+    })()}
 
     ${companionsPresent().length ? `<div class="card"><h3>Attaque des compagnons (combat de groupe)</h3>
       ${companionsPresent().map(co => `<div class="row wrap" style="margin-bottom:6px"><span class="pill">${co.nom}</span>
@@ -839,6 +846,7 @@ document.addEventListener('change', e => {
     if (name) S.car.compagnons[name] = n;
     render();
   }
+  else if (el.dataset.combatweapon != null) { if (S.combat) { S.combat.weapon = el.value; render(); } }
   else if (el.dataset.mission != null) { S.companions[el.dataset.mission].mission = el.value; save(); }
   else if (el.dataset.mult != null) { const en = S.combat.enemies[+el.dataset.enemy]; en.mult[el.dataset.mult] = el.value === '' ? '' : Math.max(0, +el.value || 0); save(); render(); }
   else if (el.dataset.enemy != null) { const en = S.combat.enemies[+el.dataset.enemy]; en[el.dataset.field] = el.value === '' ? '' : Math.max(0, +el.value || 0); save(); render(); }
