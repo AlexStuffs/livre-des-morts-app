@@ -560,12 +560,22 @@ ROUTES.combat = {
 };
 function loadCombat(num) {
   const found = DATA.adversaries.filter(a => a.paragraphe === num);
-  const enemies = (found.length ? found : [{ nom: 'Adversaire', blessure: 20, habilete: 6, force: 6, cont: 1, tranch: 1, perf: 1, tir: 1, groupe: '' }])
-    .map(a => ({ nom: a.nom, max: a.blessure || 20, dmg: 0, habilete: a.habilete || 6, force: a.force || 6,
-      mult: { cont: a.cont || 1, tranch: a.tranch || 1, perf: a.perf || 1, tir: a.tir || 1 }, groupe: a.groupe || '' }));
+  const v = x => (x == null ? '' : x);   // valeurs absentes ⇒ champ vide (à renseigner)
+  const rows = found.length ? found : [{ nom: 'Adversaire' }];
+  const enemies = rows.map(a => ({
+    nom: a.nom, dmg: 0,
+    max: v(a.blessure), habilete: v(a.habilete), force: v(a.force),
+    mult: { cont: v(a.cont), tranch: v(a.tranch), perf: v(a.perf), tir: v(a.tir) },
+    groupe: a.groupe || '',
+  }));
   S.combat = { paragraphe: num, enemies, target: 0, log: [] };
   render();
 }
+/* Blessures max numérique de l'ennemi, ou null si non renseigné (pas de plafond) */
+function enemyMaxNum(e) { const n = +e.max; return (e.max === '' || e.max == null || isNaN(n)) ? null : n; }
+function clampDmg(e, val) { const m = enemyMaxNum(e); return Math.max(0, m === null ? val : Math.min(m, val)); }
+function isDead(e) { const m = enemyMaxNum(e); return m !== null && e.dmg >= m; }
+function numOr(x, d) { const n = +x; return (x === '' || x == null || isNaN(n)) ? d : n; }
 function combatHtml(c) {
   const heroB = S.hero.blessures;
   const equipped = SLOTS.map(([k]) => S.hero[k]).filter(Boolean).map(s => s.itemId);
@@ -611,19 +621,26 @@ function combatHtml(c) {
     </div>`;
 }
 function enemyHtml(e, i, isTarget) {
-  const dead = e.dmg >= e.max;
+  const dead = isDead(e);
+  const maxN = enemyMaxNum(e);
+  const pct = maxN ? Math.min(100, e.dmg / maxN * 100) : 0;
   return `<div class="enemy" style="${isTarget ? 'box-shadow:0 0 0 2px var(--accent2)' : ''}">
     <div class="row"><h3 class="grow" style="margin:0">${esc(e.nom)} ${dead ? '<span class="tag-danger">☠ mort</span>' : ''}</h3>
       <button class="btn sm ${isTarget ? 'primary' : ''}" data-action="target" data-i="${i}">${isTarget ? '● Cible' : 'Cibler'}</button></div>
     <div class="row" style="margin:8px 0"><div class="grow">Blessures subies</div>
       <div class="stepper"><button data-action="enemy-dmg" data-i="${i}" data-delta="-1">−</button>
-        <div class="val" style="min-width:52px">${e.dmg}<span class="max">/${e.max}</span></div>
+        <div class="val" style="min-width:52px">${e.dmg}<span class="max">/${maxN == null ? '—' : maxN}</span></div>
         <button data-action="enemy-dmg" data-i="${i}" data-delta="1">＋</button></div></div>
-    <div class="bar ${dead ? 'danger' : ''}"><span style="width:${Math.min(100, e.dmg / e.max * 100)}%"></span></div>
+    <div class="bar ${dead ? 'danger' : ''}"><span style="width:${pct}%"></span></div>
     <div class="statgrid" style="margin-top:8px">
       ${[['max', 'Blessures max'], ['habilete', 'Habileté'], ['force', 'Force']].map(([k, lbl]) =>
-        `<div class="cell"><label>${lbl}</label><input type="number" data-enemy="${i}" data-field="${k}" value="${e[k]}"></div>`).join('')}
-      <div class="cell"><label>Multiplicateurs</label><div style="font-size:12px">C×${e.mult.cont} T×${e.mult.tranch} P×${e.mult.perf} Tir×${e.mult.tir}</div></div>
+        `<div class="cell"><label>${lbl}</label><input type="number" inputmode="numeric" placeholder="—" data-enemy="${i}" data-field="${k}" value="${e[k]}"></div>`).join('')}
+    </div>
+    <label class="field">Multiplicateurs de dégâts</label>
+    <div class="row" style="gap:6px">
+      ${[['cont', 'Cont.'], ['tranch', 'Tranch.'], ['perf', 'Perf.'], ['tir', 'Tir']].map(([k, lbl]) =>
+        `<div style="flex:1;text-align:center"><div class="muted" style="font-size:11px">${lbl}</div>
+          <input type="number" inputmode="numeric" placeholder="×?" data-enemy="${i}" data-mult="${k}" value="${e.mult[k]}" style="padding:8px 4px;text-align:center"></div>`).join('')}
     </div>
     ${e.groupe ? `<div class="muted" style="margin-top:6px">Combat de groupe : compétence <b>${esc(e.groupe)}</b>.</div>` : ''}
   </div>`;
@@ -636,12 +653,14 @@ function companionsPresent() {
 function assault(weaponId, type) {
   const c = S.combat; if (!c) return;
   const e = c.enemies[c.target]; if (!e) { toast('Choisissez une cible.'); return; }
-  if (e.dmg >= e.max) { toast('Cet adversaire est déjà mort.'); return; }
+  if (isDead(e)) { toast('Cet adversaire est déjà mort.'); return; }
+  const habN = numOr(e.habilete, null);
+  if (habN === null) { toast('Renseignez d\'abord l\'Habileté de l\'adversaire.'); return; }
   const w = DATA.itemById[weaponId];
   const r1 = d6(), r2 = d6(), sum = r1 + r2;
   showDice(r1, r2);
   let line;
-  if (sum >= e.habilete) {
+  if (sum >= habN) {
     let dmg = 0, extra = '';
     if (type === 'tir') {
       const tir = parseTir(w.tir);
@@ -650,14 +669,14 @@ function assault(weaponId, type) {
         const avail = S.munitions[w.munition] || 0;
         const used = Math.min(tir.canons, avail);
         if (used <= 0) { toast('Plus de ' + w.munition + '.'); return; }
-        dmg = tir.base * used * e.mult.tir;
+        dmg = tir.base * used * numOr(e.mult.tir, 1);
         S.munitions[w.munition] = avail - used;
         extra = ' [' + used + ' ' + w.munition + ']';
-      } else { dmg = tir.base * tir.canons * e.mult.tir; }
+      } else { dmg = tir.base * tir.canons * numOr(e.mult.tir, 1); }
     } else {
       const base = meleeVal(w, type, weaponId);
       if (base == null) { toast('Pas de dégâts ' + type + ' pour cette arme.'); return; }
-      dmg = base * e.mult[type];
+      dmg = base * numOr(e.mult[type], 1);
       // Durabilité +1 (corps à corps)
       const slot = SLOTS.map(([k]) => k).find(k => S.hero[k] && S.hero[k].itemId === weaponId);
       if (slot && w.durabilite !== 'infinie') {
@@ -665,12 +684,13 @@ function assault(weaponId, type) {
         if (S.hero[slot].durabilityUsed > w.durabilite) { extra = ' — ⚠ ' + itemName(weaponId) + ' brisée !'; S.hero[slot] = null; }
       }
     }
-    e.dmg = Math.min(e.max, e.dmg + dmg);
-    line = { t: `🎲 ${r1}+${r2}=${sum} ≥ ${e.habilete} → ${e.nom} subit ${dmg} (${type})${extra}`, cls: 'hit' };
-    if (e.dmg >= e.max) line.t += ' ☠';
+    e.dmg = clampDmg(e, e.dmg + dmg);
+    line = { t: `🎲 ${r1}+${r2}=${sum} ≥ ${habN} → ${e.nom} subit ${dmg} (${type})${extra}`, cls: 'hit' };
+    if (isDead(e)) line.t += ' ☠';
   } else {
-    S.hero.blessures = Math.min(M.heroBlessuresMax, S.hero.blessures + e.force);
-    line = { t: `🎲 ${r1}+${r2}=${sum} < ${e.habilete} → le héros subit ${e.force} (Force de ${e.nom})`, cls: 'miss' };
+    const forceN = numOr(e.force, 0);
+    S.hero.blessures = Math.min(M.heroBlessuresMax, S.hero.blessures + forceN);
+    line = { t: `🎲 ${r1}+${r2}=${sum} < ${habN} → le héros subit ${forceN} (Force de ${e.nom})`, cls: 'miss' };
     if (S.hero.blessures >= M.heroBlessuresMax) line.t += ' ☠';
   }
   c.log.unshift(line);
@@ -697,7 +717,7 @@ function compAttack(name, comp, val) {
   const e = c.enemies[c.target]; if (!e) { toast('Choisissez une cible.'); return; }
   const r1 = d6(), r2 = d6(), sum = r1 + r2; showDice(r1, r2);
   let line;
-  if (sum <= val) { e.dmg = Math.min(e.max, e.dmg + val); line = { t: `👥 ${name} ${capitalize(comp)} : ${r1}+${r2}=${sum} ≤ ${val} → ${e.nom} subit ${val}`, cls: 'hit' }; }
+  if (sum <= val) { e.dmg = clampDmg(e, e.dmg + val); line = { t: `👥 ${name} ${capitalize(comp)} : ${r1}+${r2}=${sum} ≤ ${val} → ${e.nom} subit ${val}`, cls: 'hit' }; }
   else line = { t: `👥 ${name} ${capitalize(comp)} : ${r1}+${r2}=${sum} > ${val} → raté`, cls: 'miss' };
   c.log.unshift(line); render();
 }
@@ -803,7 +823,7 @@ const ACTIONS = {
   'combat-blank': () => loadCombat(0),
   'combat-end': () => { if (confirm('Terminer ce combat ? (le journal sera perdu)')) { S.combat = null; render(); } },
   'target': t => { S.combat.target = +t.dataset.i; render(); },
-  'enemy-dmg': t => { const e = S.combat.enemies[+t.dataset.i]; e.dmg = Math.max(0, Math.min(e.max, e.dmg + (+t.dataset.delta))); render(); },
+  'enemy-dmg': t => { const e = S.combat.enemies[+t.dataset.i]; e.dmg = clampDmg(e, e.dmg + (+t.dataset.delta)); render(); },
   'assault': t => { const wid = $('#combatWeapon').value; assault(wid, t.dataset.type); },
   'comp-attack': t => compAttack(t.dataset.name, t.dataset.comp, +t.dataset.val),
 };
@@ -820,7 +840,8 @@ document.addEventListener('change', e => {
     render();
   }
   else if (el.dataset.mission != null) { S.companions[el.dataset.mission].mission = el.value; save(); }
-  else if (el.dataset.enemy != null) { const en = S.combat.enemies[+el.dataset.enemy]; en[el.dataset.field] = Math.max(0, +el.value || 0); save(); }
+  else if (el.dataset.mult != null) { const en = S.combat.enemies[+el.dataset.enemy]; en.mult[el.dataset.mult] = el.value === '' ? '' : Math.max(0, +el.value || 0); save(); render(); }
+  else if (el.dataset.enemy != null) { const en = S.combat.enemies[+el.dataset.enemy]; en[el.dataset.field] = el.value === '' ? '' : Math.max(0, +el.value || 0); save(); render(); }
 });
 
 /* ============================================================================

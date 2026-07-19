@@ -1,5 +1,5 @@
 /* Service worker — Le Livre des Morts (offline-first) */
-const CACHE = 'ldm-v5';
+const CACHE = 'ldm-v6';
 const ASSETS = [
   './',
   './index.html',
